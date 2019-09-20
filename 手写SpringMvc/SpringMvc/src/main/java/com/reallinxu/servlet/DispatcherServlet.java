@@ -1,6 +1,11 @@
 package com.reallinxu.servlet;
 
 
+import com.reallinxu.anno.Autowired;
+import com.reallinxu.anno.Controller;
+import com.reallinxu.anno.RequestMapping;
+import com.reallinxu.anno.Service;
+
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebInitParam;
@@ -10,12 +15,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author linxu
@@ -61,38 +65,114 @@ public class DispatcherServlet extends HttpServlet {
 
         basePackage = config.getInitParameter("base-package");
 
+        try {
 //        1. 我们应该去扫描基包下的类，得到信息A
-        scanBasePackage(basePackage);
-
-//        2. 对于@Controller/@Service/@Repository注解而言，我们需要拿到对应的名称，并初始化它们修饰的类，形成映射关系B
-
+            scanBasePackage(basePackage);
+//        2. 对于@Controller/@Service注解而言，我们需要拿到对应的名称，并初始化它们修饰的类，形成映射关系B
+            instansPackageName();
 //        3. 我们还得扫描类中的字段，如果发现有@Autowired的话，我们需要完成注入
-
+            springIOC();
 //        4.我们还需要扫描@RequestMapping，完成URL到某一个Controller的某一个方法上的映射关系C
+            handlerRequestMappingMethod();
 
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
 
+    private void handlerRequestMappingMethod() {
+        if (packageNames.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String,Object> entry: instansMap.entrySet()) {
+            if(entry.getValue().getClass().isAnnotationPresent(Controller.class)){
+                for(Method method : entry.getValue().getClass().getMethods()){
+                    if(method.isAnnotationPresent(RequestMapping.class)){
+                        RequestMapping requestMapping = method.getAnnotation(RequestMapping.class);
+                        String value = requestMapping.value();
+                        urlMethodMap.put(value,method);
+                        methodpackageMap.put(method,entry.getKey());
+                    }
+                }
+            }
+        }
+    }
+
+    private void springIOC() throws IllegalAccessException {
+        if (packageNames.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String,Object> entry: instansMap.entrySet()) {
+            Field[] fields = entry.getValue().getClass().getFields();
+            for (Field field : fields) {
+                if(field.isAnnotationPresent(Autowired.class)){
+                    field.setAccessible(true);
+                    field.set(entry.getValue(),instansMap.get(field.getName()));
+                }
+            }
+        }
+    }
+
+    private void instansPackageName() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+        if (packageNames.isEmpty()) {
+            return;
+        }
+
+        for (String packageName : packageNames) {
+            Class clazz = Class.forName(packageName);
+            if (clazz.isAnnotationPresent(Controller.class) || clazz.isAnnotationPresent(Service.class)) {
+                //类名首字母小写
+                String value = convFirstUp(clazz.getSimpleName());
+                instansMap.put(value, clazz.newInstance());
+                System.out.println("初始化Bean : " + value);
+            }
+        }
+    }
+
+    private String convFirstUp(String simpleName) {
+        char[] chars = simpleName.toCharArray();
+        chars[0] += 32;
+        return new String(chars);
     }
 
     private void scanBasePackage(String basePackage) {
-        URL url = this.getClass().getClassLoader().getResource(basePackage.replaceAll("\\.", "/"));
+        String aa = basePackage.replaceAll("\\.", "/");
+        URL url = this.getClass().getClassLoader().getResource(aa);
         File basePackageFile = new File(url.getPath());
         for (File file : basePackageFile.listFiles()) {
-            if(file.isDirectory()){
-                scanBasePackage(basePackageFile + "."+ file.getName());
-            }else if(file.isFile()){
+            if (file.isDirectory()) {
+                scanBasePackage(basePackage + "." + file.getName());
+            } else if (file.isFile()) {
                 //去掉后缀
-                packageNames.add(basePackage + "." + file.getName().split(".")[0]);
+                packageNames.add(basePackage + "." + file.getName().split("\\.")[0]);
             }
         }
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        super.doGet(req, resp);
+        doPost(req, resp);
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        super.doPost(req, resp);
+        String requestURI = req.getRequestURI();
+        Method method = urlMethodMap.get(requestURI);
+        if(method == null){
+            resp.getWriter().write("404 not found");
+            return;
+        }
+
+        try {
+            method.setAccessible(true);
+            Object invoke = method.invoke(instansMap.get(methodpackageMap.get(method)));
+            resp.getWriter().write(invoke.toString());
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+
     }
 }

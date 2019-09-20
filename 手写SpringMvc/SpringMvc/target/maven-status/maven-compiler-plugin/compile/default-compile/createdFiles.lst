@@ -1,5 +1,7 @@
-com\reallinxu\servlet\DispatcherServlet.class
-com\reallinxu\anno\Service.class
+com\reallinxu\service\MyService.class
 com\reallinxu\anno\RequestMapping.class
+com\reallinxu\servlet\DispatcherServlet.class
+com\reallinxu\controller\MyController.class
+com\reallinxu\anno\Service.class
 com\reallinxu\anno\Controller.class
 com\reallinxu\anno\Autowired.class
