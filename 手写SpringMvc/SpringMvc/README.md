@@ -14,4 +14,10 @@
     + @Documented : JavaDoc文档
     
 2. 编写核心控制器：DispatcherServlet
-    pom中添加servlet依赖，
+    pom中添加servlet依赖，dispatch中重写方法init，主要实现以下四步：  
+    1. 扫描基包下的所有类
+    2. 拿到@Controller/@Service注解对应的名称，并初始化它们修饰的类，形成映射关系
+    3. 扫描有@Autowired的字段完成自动注入
+    4. 扫描@RequestMapping，完成URL到某一个Controller的某一个方法上的映射关系
+
+3. 更改pom文件，使编译为war包，并添加war包编译插件，添加后编译运行，使用tomcat发布。
