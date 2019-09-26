@@ -2,9 +2,6 @@ package com.reallinxu.doit;
 
 import com.reallinxu.common.ProxyObject;
 import com.reallinxu.common.ProxyObjectInte;
-import com.reallinxu.jdkproxy.TestHandler;
-
-import java.lang.reflect.Proxy;
 
 public class TestMyProxy {
     public static void main(String[] args) throws Throwable {
