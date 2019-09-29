@@ -10,7 +10,6 @@ public class MyBaseExecutor implements MyExecutor{
         ResultSet resultSet = null;
 
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
             connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/test","root","123456");
             String sql = statemenet;
             preparedStatement = connection.prepareStatement(sql);
@@ -24,8 +23,6 @@ public class MyBaseExecutor implements MyExecutor{
             }
             return (T) student;
         } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
 
